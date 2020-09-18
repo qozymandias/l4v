@@ -3655,12 +3655,12 @@ lemma unbind_notification_corres:
       apply (rule corres_option_split)
         apply simp
        apply (rule corres_return_trivial)
-      apply (simp add: update_sk_obj_ref_def bind_assoc)
+      apply (simp add: do_unbind_notification_def update_sk_obj_ref_def bind_assoc)
       apply (rule corres_split[OF _ get_ntfn_corres])
         apply (rule corres_split[OF _ set_ntfn_corres])
            apply (rule sbn_corres)
           apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
-         apply (wpsimp wp: gbn_wp' gbn_wp simp: obj_at_def split: option.split)+
+         apply (wpsimp wp: gbn_wp' gbn_wp get_ntfn_ko' simp: obj_at_def split: option.split)+
    apply (frule invs_valid_objs)
    apply (clarsimp simp: is_tcb)
    apply (frule_tac thread=t and y=tcb in valid_tcb_objs)
@@ -3672,33 +3672,48 @@ lemma unbind_notification_corres:
                   split: option.splits)
   done
 
+lemma get_simple_ko_exs_valid:
+  "\<lbrakk>inj C; ko_at (C ko) p s; is_simple_type (C ko)\<rbrakk> \<Longrightarrow> \<lbrace>(=) s\<rbrace> get_simple_ko C p \<exists>\<lbrace>\<lambda>_. (=) s\<rbrace>"
+  by (auto simp: get_simple_ko_def get_object_def gets_def return_def get_def
+                     partial_inv_def exs_valid_def bind_def obj_at_def is_reply fail_def inj_def split: prod.splits)
+
+lemmas get_notification_exs_valid[wp] = get_simple_ko_exs_valid[where C=Notification, simplified]
+
+lemma no_fail_simple_ko_at:
+  "\<lbrakk>inj C; is_simple_type (C ko)\<rbrakk> \<Longrightarrow> no_fail (ko_at (C ko) p) (get_simple_ko C p)"
+  apply (wpsimp simp: get_simple_ko_def obj_at_def wp: get_object_wp)
+  by (auto simp: partial_inv_def inj_def split: if_splits)
+
+lemmas no_fail_get_notification[wp] = no_fail_simple_ko_at[where C=Notification, simplified]
+
 lemma unbind_maybe_notification_corres:
   "corres dc
-      (invs and ntfn_at ntfnptr) (invs' and ntfn_at' ntfnptr)
+      (valid_objs and ntfn_at ntfnptr) (valid_objs' and ntfn_at' ntfnptr)
       (unbind_maybe_notification ntfnptr)
       (unbindMaybeNotification ntfnptr)"
   apply (simp add: unbind_maybe_notification_def unbindMaybeNotification_def)
   apply (rule corres_guard_imp)
-  sorry (* unbind_maybe_notification_corres *) (*
+    apply (clarsimp simp: maybeM_def do_unbind_notification_def get_sk_obj_ref_def)
     apply (rule corres_split[OF _ get_ntfn_corres])
       apply (rule corres_option_split)
-        apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
+        apply (simp add: ntfn_relation_def)
        apply (rule corres_return_trivial)
-      apply simp
-      apply (rule corres_split[OF _ set_ntfn_corres])
-         apply (rule sbn_corres)
-        apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
-       apply (wp get_simple_ko_wp getNotification_wp)+
-   apply (clarsimp elim!: obj_at_valid_objsE
-                   dest!: bound_tcb_at_state_refs_ofD invs_valid_objs
-                    simp: valid_obj_def is_tcb tcb_ntfn_is_bound_def
-                          valid_tcb_def valid_bound_ntfn_def valid_ntfn_def
-                   split: option.splits)
-  apply (clarsimp dest!: obj_at_valid_objs' bound_tcb_at_state_refs_ofD' invs_valid_objs'
-                   simp: projectKOs valid_obj'_def valid_tcb'_def valid_bound_ntfn'_def
-                         tcb_ntfn_is_bound'_def valid_ntfn'_def
-                  split: option.splits)
-  done *)
+      apply (simp add: bind_assoc)
+      apply (rule corres_split[OF sbn_corres])
+        apply (simp add: update_sk_obj_ref_def)
+        apply (rule_tac P="ko_at (Notification sc) ntfnptr" in corres_symb_exec_l)
+           apply (rename_tac ntfnA ntfnH tcbPtr ntfnA')
+           apply (rule_tac F="ntfnA = ntfnA'" in corres_gen_asm)
+           apply (rule set_ntfn_corres)
+           apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
+          apply (wpsimp wp: simp: split: option.splits)
+         apply (wpsimp simp: obj_at_def is_ntfn wp: get_simple_ko_wp getNotification_wp)+
+   apply (erule (1) pspace_valid_objsE)
+   apply (clarsimp simp: valid_obj_def valid_ntfn_def obj_at_def split: option.splits)
+  apply clarsimp
+  apply (frule (1) ko_at_valid_objs'_pre)
+  apply (clarsimp simp: valid_obj'_def valid_ntfn'_def split: option.splits)
+  done
 
 lemma fast_finalise_corres:
   "\<lbrakk> final_matters' cap' \<longrightarrow> final = final'; cap_relation cap cap';
