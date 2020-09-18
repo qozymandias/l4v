@@ -3655,7 +3655,7 @@ lemma unbind_notification_corres:
       apply (rule corres_option_split)
         apply simp
        apply (rule corres_return_trivial)
-      apply (simp add: do_unbind_notification_def update_sk_obj_ref_def bind_assoc)
+      apply (simp add: update_sk_obj_ref_def bind_assoc)
       apply (rule corres_split[OF _ get_ntfn_corres])
         apply (rule corres_split[OF _ set_ntfn_corres])
            apply (rule sbn_corres)
@@ -3672,20 +3672,6 @@ lemma unbind_notification_corres:
                   split: option.splits)
   done
 
-lemma get_simple_ko_exs_valid:
-  "\<lbrakk>inj C; ko_at (C ko) p s; is_simple_type (C ko)\<rbrakk> \<Longrightarrow> \<lbrace>(=) s\<rbrace> get_simple_ko C p \<exists>\<lbrace>\<lambda>_. (=) s\<rbrace>"
-  by (auto simp: get_simple_ko_def get_object_def gets_def return_def get_def
-                     partial_inv_def exs_valid_def bind_def obj_at_def is_reply fail_def inj_def split: prod.splits)
-
-lemmas get_notification_exs_valid[wp] = get_simple_ko_exs_valid[where C=Notification, simplified]
-
-lemma no_fail_simple_ko_at:
-  "\<lbrakk>inj C; is_simple_type (C ko)\<rbrakk> \<Longrightarrow> no_fail (ko_at (C ko) p) (get_simple_ko C p)"
-  apply (wpsimp simp: get_simple_ko_def obj_at_def wp: get_object_wp)
-  by (auto simp: partial_inv_def inj_def split: if_splits)
-
-lemmas no_fail_get_notification[wp] = no_fail_simple_ko_at[where C=Notification, simplified]
-
 lemma unbind_maybe_notification_corres:
   "corres dc
       (valid_objs and ntfn_at ntfnptr) (valid_objs' and ntfn_at' ntfnptr)
@@ -3693,7 +3679,7 @@ lemma unbind_maybe_notification_corres:
       (unbindMaybeNotification ntfnptr)"
   apply (simp add: unbind_maybe_notification_def unbindMaybeNotification_def)
   apply (rule corres_guard_imp)
-    apply (clarsimp simp: maybeM_def do_unbind_notification_def get_sk_obj_ref_def)
+    apply (clarsimp simp: maybeM_def get_sk_obj_ref_def)
     apply (rule corres_split[OF _ get_ntfn_corres])
       apply (rule corres_option_split)
         apply (simp add: ntfn_relation_def)
